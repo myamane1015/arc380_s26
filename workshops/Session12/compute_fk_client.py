@@ -10,10 +10,33 @@ class ComputeFKClient(Node):
     def __init__(self):
         super().__init__("compute_fk_client")
 
-        pass
+        self.client = self.create_client(GetPositionFK, "/compute_fk")
+
+        while not self.client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info("Waiting for service...")
 
     def call_fk(self, joint_names: list[str], joint_positions: list[float], link_name: str, frame_id: str = "world"):
-        pass
+        request = GetPositionFK.Request()
+
+        request.header.frame_id = frame_id
+
+        request.fk_link_names = [link_name]
+
+        robot_state = RobotState()
+        joint_state = JointState()
+        joint_state.position = joint_positions
+        joint_state.name = joint_names
+        robot_state.joint_state = joint_state
+
+        future = self.client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+
+            self.get_logger().info(f"{response}")
+        else:
+            self.get_logger().error("Service call failed.")
 
 
 def main():

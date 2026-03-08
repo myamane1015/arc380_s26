@@ -11,7 +11,10 @@ class ComputeIKClient(Node):
     def __init__(self):
         super().__init__("compute_ik_client")
 
-        pass
+        self.client = self.create_client(GetPositionIK, "/compute_ik")
+
+        while not self.client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info("Waiting for service...")
 
     def call_ik(
         self,
@@ -23,7 +26,37 @@ class ComputeIKClient(Node):
         frame_id: str = "world",
         timeout_sec: float = 1.0,
     ):
-        pass
+        request = GetPositionIK.Request()
+        ik_req = PositionIKRequest()
+
+        ik_req.pose_stamped = target_pose
+        ik_req.pose_stamped.header.frame_id = frame_id
+
+        if seed_joint_names is not None and seed_joint_positions is not None:
+            rs = RobotState()
+            js = JointState()
+            js.name = list(seed_joint_names)
+            js.position = list(seed_joint_positions)
+            rs.joint_state = js
+            ik_req.robot_state = rs
+
+        ik_req.group_name = group_name
+        ik_req.ik_link_name = link_name
+
+        ik_req.timeout.sec = int(timeout_sec)
+        ik_req.timeout.nanosec = int((timeout_sec - int(timeout_sec)) * 1e9)
+
+        request.ik_request = ik_req
+
+        future = self.client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+
+            self.get_logger().info(f"{response}")
+        else:
+            self.get_logger().error("Service call failed.")
 
 
 def main():
