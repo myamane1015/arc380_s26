@@ -4,9 +4,6 @@ ros2_control:
 
     hardware:
       plugin: gz_ros2_control/GazeboSimSystem
-      # Some installs use a different plugin string; if this doesn't load, check:
-      #   ros2 pkg executables gz_ros2_control
-      #   strings on the plugin library / docs for your distro
 
     joints:
       - name: joint_1
@@ -25,5 +22,11 @@ ros2_control:
         command_interfaces: [position]
         state_interfaces: [position, velocity]
       - name: joint_6
+        command_interfaces: [position]
+        state_interfaces: [position, velocity]
+      - name: left_finger_joint
+        command_interfaces: [position]
+        state_interfaces: [position, velocity]
+      - name: right_finger_joint
         command_interfaces: [position]
         state_interfaces: [position, velocity]

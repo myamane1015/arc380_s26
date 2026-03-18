@@ -89,6 +89,18 @@ def generate_launch_description():
         output="screen",
     )
 
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "gripper_controller",
+            "--controller-manager-timeout", "30",
+            "--switch-timeout", "30",
+        ],
+        parameters=[{"use_sim_time": True}],
+        output="screen",
+    )
+
     move_group = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -135,6 +147,12 @@ def generate_launch_description():
         RegisterEventHandler(
             OnProcessExit(
                 target_action=arm_controller_spawner,
+                on_exit=[TimerAction(period=2.0, actions=[gripper_controller_spawner])],
+            )
+        ),
+        RegisterEventHandler(
+            OnProcessExit(
+                target_action=gripper_controller_spawner,
                 on_exit=[
                     TimerAction(period=2.0, actions=[move_group]),
                     TimerAction(period=4.0, actions=[rviz]),

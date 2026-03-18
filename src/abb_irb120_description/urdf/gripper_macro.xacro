@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:property name="color_abb_graphite_white" value="0.7725490 0.7803922 0.7686275 1" />
+
+  <xacro:macro name="material_abb_graphite_white">
+    <material name="">
+      <color rgba="${color_abb_graphite_white}"/>
+    </material>
+  </xacro:macro>
+
+  <xacro:macro name="gripper" params="prefix">
+    <link name="${prefix}gripper_base">
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      </inertial>
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/collision/gripper_base.stl"/>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/visual/gripper_base.stl"/>
+        </geometry>
+        <xacro:material_abb_graphite_white />
+      </visual>
+    </link>
+    <link name="${prefix}left_finger">
+      <inertial>
+        <mass value="0.1"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      </inertial>
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/collision/left_finger.stl"/>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/visual/left_finger.stl"/>
+        </geometry>
+        <xacro:material_abb_graphite_white />
+      </visual>
+    </link>
+    <link name="${prefix}right_finger">
+      <inertial>
+        <mass value="0.1"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+      </inertial>
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/collision/right_finger.stl"/>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb120_description/meshes/visual/right_finger.stl"/>
+        </geometry>
+        <xacro:material_abb_graphite_white />
+      </visual>
+    </link>
+
+    <joint name="${prefix}left_finger_joint" type="prismatic">
+        <parent link="${prefix}gripper_base"/>
+        <child link="${prefix}left_finger"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 -1 0"/>
+        <limit lower="0.0" upper="0.01" effort="20" velocity="0.05"/>
+    </joint>
+
+    <joint name="${prefix}right_finger_joint" type="prismatic">
+        <parent link="${prefix}gripper_base"/>
+        <child link="${prefix}right_finger"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit lower="0.0" upper="0.01" effort="20" velocity="0.05"/>
+    </joint>
+
+    <link name="${prefix}gripper_tcp"/>
+    <joint name="${prefix}gripper_base-gripper_tcp" type="fixed">
+        <parent link="${prefix}gripper_base"/>
+        <child link="${prefix}gripper_tcp"/>
+        <origin xyz="0 0 0.1353" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>

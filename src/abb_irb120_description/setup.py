@@ -21,6 +21,8 @@ setup(
          glob('meshes/collision/*.stl')),
         (os.path.join('share', package_name, 'meshes', 'visual'),
          glob('meshes/visual/*.dae')),
+         (os.path.join('share', package_name, 'meshes', 'visual'),
+         glob('meshes/visual/*.stl')),
 
         # Launch + RViz configs (remove these two blocks if the folders don't exist yet)
         (os.path.join('share', package_name, 'launch'),
