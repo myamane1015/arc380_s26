@@ -65,12 +65,30 @@
       </visual>
     </link>
 
+    <gazebo reference="${prefix}left_finger">
+      <mu1>5.0</mu1>
+      <mu2>5.0</mu2>
+      <kp>10000000.0</kp>
+      <kd>10000.0</kd>
+      <maxVel>0.01</maxVel>
+      <minDepth>0.001</minDepth>
+    </gazebo>
+
+    <gazebo reference="${prefix}right_finger">
+      <mu1>5.0</mu1>
+      <mu2>5.0</mu2>
+      <kp>10000000.0</kp>
+      <kd>10000.0</kd>
+      <maxVel>0.01</maxVel>
+      <minDepth>0.001</minDepth>
+    </gazebo>
+
     <joint name="${prefix}left_finger_joint" type="prismatic">
         <parent link="${prefix}gripper_base"/>
         <child link="${prefix}left_finger"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 -1 0"/>
-        <limit lower="0.0" upper="0.01" effort="20" velocity="0.05"/>
+        <limit lower="0.0" upper="0.01" effort="150" velocity="0.05"/>
     </joint>
 
     <joint name="${prefix}right_finger_joint" type="prismatic">
@@ -78,7 +96,7 @@
         <child link="${prefix}right_finger"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 1 0"/>
-        <limit lower="0.0" upper="0.01" effort="20" velocity="0.05"/>
+        <limit lower="0.0" upper="0.01" effort="150" velocity="0.05"/>
     </joint>
 
     <link name="${prefix}gripper_tcp"/>

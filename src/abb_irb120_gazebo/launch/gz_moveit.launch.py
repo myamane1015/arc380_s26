@@ -24,7 +24,7 @@ def generate_launch_description():
     )
 
     world = os.path.join(
-        get_package_share_directory("abb_irb120_gazebo"), "worlds", "empty.sdf"
+        get_package_share_directory("abb_irb120_gazebo"), "worlds", "workcell.sdf"
     )
 
     rviz_config_file = os.path.join(pkg_moveit, "config", "moveit.rviz")

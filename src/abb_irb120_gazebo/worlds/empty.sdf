@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.9">
-  <world name="fabrication_lab">
+  <world name="empty">
 
     <!-- Physics -->
     <physics name="default_physics" type="ode">
