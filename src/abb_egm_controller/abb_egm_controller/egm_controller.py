@@ -26,6 +26,7 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 from rclpy.action.server import ServerGoalHandle
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import JointState
+from example_interfaces.srv import SetBool
 
 
 _ALLOWED_TRANSITIONS = [
@@ -103,6 +104,9 @@ class EGMController(Node):
         self._traj_segment_idx: int = 0
         self._traj_start_positions: list[float] = []
 
+        self._gripper_lock = Lock()
+        self._gripper_cmd = False
+
         # Latest robot joint feedback (written by EGM loop, read by action callback)
         self._latest_feedback_joints: list[float] = []
 
@@ -148,6 +152,7 @@ class EGMController(Node):
             self._set_control_mode_callback,
             callback_group=self._srv_cb_group,
         )
+        self.create_service(SetBool, f"/{self.get_name()}/control/set_gripper", self._set_gripper_callback, callback_group=self._srv_cb_group)
 
         self._action_cb_group = ReentrantCallbackGroup()
         self._action_server = ActionServer(
@@ -545,6 +550,14 @@ class EGMController(Node):
         response.current_mode = self.state.to_srv()
         response.message = message
         self.get_logger().info(f"Control mode changed: {message}")
+        return response
+
+    def _set_gripper_callback(self, request: SetBool.Request, response: SetBool.Response):
+        with self._gripper_lock:
+            self._gripper_cmd = request.data
+        response.success = True
+        response.message = f"Gripper command set to {self._gripper_cmd}"
+        self.get_logger().info(response.message)
         return response
 
     # endregion Callbacks
