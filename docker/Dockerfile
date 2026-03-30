@@ -95,7 +95,9 @@ ENV GALLIUM_DRIVER=llvmpipe
 ENV QT_X11_NO_MITSHM=1
 ENV DISPLAY=:1
 # Allow Gazebo to resolve package:// URIs for robot meshes
-ENV GZ_SIM_RESOURCE_PATH=/ros2_ws/install/abb_irb120_description/share
+ENV GZ_SIM_RESOURCE_PATH=\
+/ros2_ws/install/abb_irb120_description/share:\
+/ros2_ws/install/abb_irb120_gazebo/share/abb_irb120_gazebo/models
 
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> /etc/bash.bashrc && \
     echo 'source /ros2_ws/install/setup.bash' >> /etc/bash.bashrc

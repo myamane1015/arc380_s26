@@ -37,10 +37,18 @@ echo "  VNC direct:        localhost:5900  (no password)"
 echo "========================================================================"
 echo ""
 
-# ── 5. Launch MoveIt and controllers ──────────────────────────────────────────
-echo "[5/5] Launching MoveIt + EGM controller ..."
-ros2 launch abb_egm_controller egm_controller.launch.py &
+# ── 5. Launch simulation ──────────────────────────────────────────────────────
+echo "[5/5] Launching MoveIt + Gazebo simulation..."
+ros2 launch abb_irb120_gazebo gz_moveit.launch.py &
 SIM_PID=$!
+
+# Wait for the Gazebo server to be ready before connecting the GUI
+echo "Waiting for Gazebo server to initialise (15 s)..."
+sleep 15
+
+# Connect the Gazebo GUI client to the already-running server
+echo "Launching Gazebo GUI client..."
+gz sim -g &
 
 echo ""
 echo "All processes started."

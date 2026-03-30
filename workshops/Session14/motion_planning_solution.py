@@ -437,13 +437,11 @@ def main():
     gripper_open = 0.0
     gripper_closed = 0.01
 
-    # 1) Plan gripper open using MoveIt joint-space planning
     node.send_gripper_command(
         position=gripper_open,
         max_velocity=0.05,
     )
 
-    # 2) Plan arm motion using the same structure as your original file
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
         link_name="gripper_tcp",
