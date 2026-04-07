@@ -422,7 +422,6 @@ class EGMController(Node):
         robot_joint_names = self.config.robot_joint_names
         joint_indices = [robot_joint_names.index(name) for name in trajectory.joint_names]
 
-        start_time = time.monotonic()
         initial_feedback = self._latest_feedback_joints.copy()
         if not initial_feedback:
             initial_feedback = [0.0] * len(robot_joint_names)
@@ -431,16 +430,13 @@ class EGMController(Node):
             self._traj_state.reset()  # TODO: instead of making this a state tracker, refactor into a trajectory executable, and each call instantiates a new instance
             self._traj_state.points = list(trajectory.points)
             self._traj_state.joint_indices = joint_indices
-            self._traj_state.start_time = start_time
-        
-        # temp debugging
-        # print all _traj_state fields
-        with self._traj_lock:
-            print("Trajectory State Fields:")
-            for attr_name in dir(self._traj_state):
-                if not attr_name.startswith('_'):
-                    print(f"  {attr_name}: {getattr(self._traj_state, attr_name)}")
+            self._traj_state.start_positions = list(initial_feedback)
 
+        # Capture start_time as late as possible, immediately before starting execution,
+        # so that elapsed time in the EGM loop reflects actual robot motion time.
+        start_time = time.monotonic()
+        with self._traj_lock:
+            self._traj_state.start_time = start_time
 
         self.state = ControllerState.TRAJECTORY
         self.get_logger().info(f"Executing time-parameterized trajectory with {len(trajectory.points)} points")
