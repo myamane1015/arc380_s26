@@ -1170,10 +1170,401 @@ def main():
         goal_xyz=(0.0, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
+    
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+        
+        arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.402, 0.12),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+        
+        arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.402, 0.078),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+    
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+        
+        arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.402, 0.12),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
 
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.06, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.06, 0.360, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+        
+    node.send_gripper_command(
+        position=gripper_closed,
+        max_velocity=0.05,
+    )
 
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.06, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.302, 0.12),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.302, 0.078),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.089, -0.302, 0.12),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.12, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.12, 0.360, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_closed,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.12, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.317, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.317, 0.078),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.317, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.18, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.18, 0.360, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+
+    node.send_gripper_command(
+        position=gripper_closed,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.18, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.387, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.387, 0.078),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.387, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.24, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.24, 0.360, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_closed,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.24, 0.360, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.387, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.387, 0.078),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.054, -0.387, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.0, 0.30, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.0, 0.30, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_closed,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.0, 0.30, 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.317, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.317, 0.078),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=gripper_open,
+        max_velocity=0.05,
+    )
+
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name="gripper_tcp",
+        frame_id="world",
+        goal_xyz=(0.124, -0.317, 0.12),
+        goal_quat_wxyz=(0.0, 0.923880, -0.382683, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
     node.destroy_node()
     rclpy.shutdown()
 
