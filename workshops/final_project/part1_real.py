@@ -1,45 +1,32 @@
+import time
 from typing import Optional
 
 import rclpy
-from rclpy.node import Node
-from rclpy.action import ActionClient
-from rclpy.parameter import Parameter
-
-
-from builtin_interfaces.msg import Duration
-from sensor_msgs.msg import JointState
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-from moveit_msgs.srv import GetMotionPlan
-from moveit_msgs.action import ExecuteTrajectory
+from example_interfaces.srv import SetBool
+from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import (
-    MotionPlanRequest,
-    Constraints,
-    PositionConstraint,
-    OrientationConstraint,
     BoundingVolume,
+    Constraints,
+    JointConstraint,
+    MotionPlanRequest,
+    OrientationConstraint,
+    PositionConstraint,
     RobotState,
     RobotTrajectory,
-    JointConstraint,
 )
-
+from moveit_msgs.srv import GetMotionPlan
+from rclpy.action import ActionClient
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from sensor_msgs.msg import JointState
 from shape_msgs.msg import SolidPrimitive
-from geometry_msgs.msg import PoseStamped
-from control_msgs.action import FollowJointTrajectory, ParallelGripperCommand
-import time
+
+from abb_egm_interfaces.action import ExecuteTrajectory
 
 
-class PlanAndExecuteClient(Node):
-    """
-    Extends the user's plan_kinematic_path client with:
-      - arm planning to pose constraints
-      - gripper planning to joint targets
-      - MoveIt trajectory execution
-      - direct controller execution for arm/gripper
-    """
-
+class EGMClient(Node):
     def __init__(self):
-        super().__init__("plan_and_execute_client")
+        super().__init__("egm_client")
         self.set_parameters([Parameter("use_sim_time", value=True)])
 
         # MoveIt planning service
@@ -48,22 +35,10 @@ class PlanAndExecuteClient(Node):
             self.get_logger().info("Waiting for /plan_kinematic_path service...")
         self.get_logger().info("/plan_kinematic_path service available.")
 
-        # MoveIt execution action
-        self.execute_moveit_ac = ActionClient(
-            self, ExecuteTrajectory, "/execute_trajectory"
-        )
+        # EGM execution action
+        self.execute_traj_ac = ActionClient(self, ExecuteTrajectory, "/execute_trajectory")
 
-        # ros2_control trajectory actions
-        self.arm_traj_ac = ActionClient(
-            self,
-            FollowJointTrajectory,
-            "/arm_controller/follow_joint_trajectory",
-        )
-        self.gripper_cmd_ac = ActionClient(
-            self,
-            ParallelGripperCommand,
-            "/gripper_controller/gripper_cmd",
-        )
+        self.gripper_client = self.create_client(SetBool, "/egm_controller/control/set_gripper")
 
     @staticmethod
     def _make_start_state(joint_names, joint_positions) -> RobotState:
@@ -163,16 +138,13 @@ class PlanAndExecuteClient(Node):
         mres = resp.motion_plan_response
 
         if mres.error_code.val != mres.error_code.SUCCESS:
-            self.get_logger().error(
-                f"Planning failed. MoveItErrorCodes.val = {mres.error_code.val}"
-            )
+            self.get_logger().error(f"Planning failed. MoveItErrorCodes.val = {mres.error_code.val}")
             return None
 
         traj = mres.trajectory
         jt = traj.joint_trajectory
         self.get_logger().info(
-            f"Planning succeeded. JointTrajectory has {len(jt.points)} points "
-            f"for joints: {list(jt.joint_names)}"
+            f"Planning succeeded. JointTrajectory has {len(jt.points)} points for joints: {list(jt.joint_names)}"
         )
         if jt.points:
             last = jt.points[-1]
@@ -194,8 +166,8 @@ class PlanAndExecuteClient(Node):
         ori_tolerance_rpy: tuple[float, float, float] = (0.001, 0.001, 0.001),
         allowed_planning_time: float = 5.0,
         num_attempts: int = 5,
-        max_velocity_scaling: float = 0.2,
-        max_acceleration_scaling: float = 0.2,
+        max_velocity_scaling: float = 0.6,
+        max_acceleration_scaling: float = 0.6,
         planner_id: str = "",
     ) -> Optional[RobotTrajectory]:
         mpr = MotionPlanRequest()
@@ -204,9 +176,7 @@ class PlanAndExecuteClient(Node):
             mpr.planner_id = planner_id
 
         if start_joint_names is not None and start_joint_positions is not None:
-            mpr.start_state = self._make_start_state(
-                start_joint_names, start_joint_positions
-            )
+            mpr.start_state = self._make_start_state(start_joint_names, start_joint_positions)
 
         constraints = Constraints()
         constraints.position_constraints = [
@@ -223,6 +193,14 @@ class PlanAndExecuteClient(Node):
                 frame_id=frame_id,
                 target_quat_wxyz=goal_quat_wxyz,
                 tolerance_rpy=ori_tolerance_rpy,
+            )
+        ]
+        constraints.joint_constraints = [
+            self._make_joint_constraint(
+                joint_name='joint_6', 
+                position=3.14,
+                tolerance_above=3.15,
+                tolerance_below=3.15
             )
         ]
         mpr.goal_constraints = [constraints]
@@ -265,9 +243,7 @@ class PlanAndExecuteClient(Node):
             mpr.planner_id = planner_id
 
         if start_joint_names is not None and start_joint_positions is not None:
-            mpr.start_state = self._make_start_state(
-                start_joint_names, start_joint_positions
-            )
+            mpr.start_state = self._make_start_state(start_joint_names, start_joint_positions)
 
         constraints = Constraints()
         constraints.joint_constraints = [
@@ -289,106 +265,39 @@ class PlanAndExecuteClient(Node):
         return self._call_motion_plan(mpr)
 
     def execute_moveit_trajectory(self, traj: RobotTrajectory) -> bool:
-        """
-        Executes a RobotTrajectory through MoveIt's /execute_trajectory action.
-        This is the simplest path when MoveIt is already configured with both
-        arm_controller and gripper_controller.
-        """
-        if not self.execute_moveit_ac.wait_for_server(timeout_sec=5.0):
+
+        if not self.execute_traj_ac.wait_for_server(timeout_sec=5.0):
             self.get_logger().error("/execute_trajectory action not available.")
             return False
 
         goal = ExecuteTrajectory.Goal()
-        goal.trajectory = traj
+        goal.trajectory = traj.joint_trajectory
+        goal.stop_active_motion = True
 
-        send_future = self.execute_moveit_ac.send_goal_async(goal)
+        send_future = self.execute_traj_ac.send_goal_async(goal)
         rclpy.spin_until_future_complete(self, send_future)
         goal_handle = send_future.result()
 
         if goal_handle is None or not goal_handle.accepted:
-            self.get_logger().error("MoveIt execution goal rejected.")
+            self.get_logger().error("EGM execution goal rejected.")
             return False
 
-        self.get_logger().info("MoveIt execution goal accepted.")
+        self.get_logger().info("EGM execution goal accepted.")
 
         result_future = goal_handle.get_result_async()
         rclpy.spin_until_future_complete(self, result_future)
         result = result_future.result()
 
         if result is None:
-            self.get_logger().error("Failed to get MoveIt execution result.")
+            self.get_logger().error("Failed to get EGM execution result.")
             return False
 
-        error_code = result.result.error_code.val
-        if error_code != result.result.error_code.SUCCESS:
-            self.get_logger().error(
-                f"MoveIt execution failed. MoveItErrorCodes.val = {error_code}"
-            )
+        if not result.result.success:
+            self.get_logger().error(f"EGM execution failed. Message: {result.result.message}")
             return False
 
-        self.get_logger().info("MoveIt execution succeeded.")
+        self.get_logger().info("EGM execution succeeded.")
         return True
-
-    def _send_follow_joint_trajectory(
-        self,
-        action_client: ActionClient,
-        joint_names: list[str],
-        positions: list[float],
-        duration_sec: float = 2.0,
-    ) -> bool:
-        if len(joint_names) != len(positions):
-            self.get_logger().error("joint_names and positions length mismatch.")
-            return False
-
-        if not action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("FollowJointTrajectory action server not available.")
-            return False
-
-        traj = JointTrajectory()
-        traj.joint_names = list(joint_names)
-
-        point = JointTrajectoryPoint()
-        point.positions = list(positions)
-        point.time_from_start = Duration(sec=int(duration_sec), nanosec=int((duration_sec % 1.0) * 1e9))
-        traj.points = [point]
-
-        goal = FollowJointTrajectory.Goal()
-        goal.trajectory = traj
-
-        send_future = action_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, send_future)
-        goal_handle = send_future.result()
-
-        if goal_handle is None or not goal_handle.accepted:
-            self.get_logger().error("Controller execution goal rejected.")
-            return False
-
-        result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future)
-        result = result_future.result()
-
-        if result is None:
-            self.get_logger().error("Failed to get controller execution result.")
-            return False
-
-        if result.result.error_code != 0:
-            self.get_logger().error(
-                f"Controller execution failed with error_code={result.result.error_code}"
-            )
-            return False
-
-        self.get_logger().info("Controller execution succeeded.")
-        return True
-
-    def send_arm_trajectory(
-        self,
-        joint_names: list[str],
-        positions: list[float],
-        duration_sec: float = 3.0,
-    ) -> bool:
-        return self._send_follow_joint_trajectory(
-            self.arm_traj_ac, joint_names, positions, duration_sec
-        )
 
     def send_gripper_command(
         self,
@@ -397,48 +306,32 @@ class PlanAndExecuteClient(Node):
         max_effort: float = 0.0,
         joint_name: str = "left_finger_joint",
     ) -> bool:
-        if not self.gripper_cmd_ac.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("ParallelGripperCommand action server not available.")
+        if not self.gripper_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error("Gripper control service not available.")
             return False
 
-        goal = ParallelGripperCommand.Goal()
-        goal.command.name = [joint_name]
-        goal.command.position = [float(position)]
-
-        if max_velocity > 0.0:
-            goal.command.velocity = [float(max_velocity)]
-
-        if max_effort > 0.0:
-            goal.command.effort = [float(max_effort)]
-
-        send_future = self.gripper_cmd_ac.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, send_future)
-        goal_handle = send_future.result()
-
-        if goal_handle is None or not goal_handle.accepted:
-            self.get_logger().error("Gripper command goal rejected.")
+        req = SetBool.Request()
+        req.data = position > 1e-6
+        future = self.gripper_client.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+        if future.result() is None:
+            self.get_logger().error("Failed to call gripper control service.")
             return False
 
-        result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future)
-        result = result_future.result()
-
-        time.sleep(0.5)
-        
-        if result is None:
-            self.get_logger().error("Failed to get gripper command result.")
+        response = future.result()
+        if not response.success:
+            self.get_logger().error(f"Gripper control failed: {response.message}")
             return False
-
-        self.get_logger().info("Gripper command completed.")
-        self.get_logger().info(
-            f"stalled={result.result.stalled}, reached_goal={result.result.reached_goal}"
-        )
+        self.get_logger().info(f"Gripper control succeeded: {response.message}")
+        time.sleep(2.0)
         return True
-
 
 def main():
     rclpy.init()
-    node = PlanAndExecuteClient()
+    node = EGMClient()
+
+    link_name_sim = "gripper_tcp"
+    link_name_real = "gripper_tcp_calibrated"
 
     gripper_open = 0.0
     gripper_closed = 0.01
@@ -450,7 +343,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -460,7 +353,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -475,7 +368,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -485,7 +378,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.289, 0.322, 0.1),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -495,7 +388,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.289, 0.322, 0.032),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -510,7 +403,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.289, 0.322, 0.1),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -520,7 +413,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -530,7 +423,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.480, 0.0320),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -545,7 +438,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -555,7 +448,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.389, 0.322, 0.1),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -565,7 +458,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.389, 0.322, 0.0320),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -580,7 +473,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.389, 0.322, 0.1),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -590,7 +483,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -600,7 +493,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.480, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -615,7 +508,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -625,7 +518,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -635,7 +528,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.0320),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -650,7 +543,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -660,7 +553,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.180, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -670,7 +563,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.180, 0.480, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -685,7 +578,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.180, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -695,7 +588,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.272, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -705,7 +598,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.272, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -720,7 +613,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.272, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -730,7 +623,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -740,7 +633,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.480, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -755,7 +648,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -765,7 +658,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.287, 0.1),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -775,9 +668,9 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.304, 0.287, 0.032),
+        goal_xyz=(0.304, 0.287, 0.05),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
     )
     if arm_traj is not None:
@@ -790,7 +683,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.287, 0.1),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -800,7 +693,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.42, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -810,7 +703,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.42, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -825,7 +718,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.42, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -835,7 +728,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.357, 0.1),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -845,7 +738,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.357, 0.046),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -860,7 +753,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.357, 0.1),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -870,7 +763,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.42, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -880,7 +773,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.42, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -895,7 +788,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.42, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -905,7 +798,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.357, 0.1),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -915,7 +808,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.357, 0.046),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -930,7 +823,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.357, 0.1),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -940,7 +833,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -950,7 +843,7 @@ def main():
         
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.420, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -965,7 +858,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -975,7 +868,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.287, 0.1),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -985,7 +878,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.287, 0.046),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -1000,7 +893,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.287, 0.1),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -1010,7 +903,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1020,7 +913,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.420, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1035,7 +928,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1045,7 +938,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.289, 0.322, 0.12),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -1055,9 +948,9 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.289, 0.322, 0.06),
+        goal_xyz=(0.289, 0.322, 0.078),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
     )
     if arm_traj is not None:
@@ -1070,7 +963,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.289, 0.322, 0.12),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -1080,7 +973,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1090,7 +983,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.420, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1105,7 +998,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.420, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1115,7 +1008,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.389, 0.322, 0.12),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -1125,9 +1018,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.389, 0.322, 0.06),
+        goal_xyz=(0.389, 0.322, 0.078),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
     )
     if arm_traj is not None:
@@ -1140,7 +1033,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.389, 0.322, 0.12),
         goal_quat_wxyz=(0.0, 0.707107, -0.707107, 0.0),
@@ -1150,7 +1043,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1160,7 +1053,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.360, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1175,7 +1068,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1186,7 +1079,7 @@ def main():
         
         arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.12),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1199,9 +1092,9 @@ def main():
         
         arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.339, 0.372, 0.06),
+        goal_xyz=(0.339, 0.372, 0.078),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -1217,7 +1110,7 @@ def main():
         
         arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.12),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1227,7 +1120,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1237,7 +1130,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.360, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1252,7 +1145,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.06, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1262,7 +1155,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.272, 0.12),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1272,9 +1165,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.339, 0.272, 0.06),
+        goal_xyz=(0.339, 0.272, 0.078),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -1287,7 +1180,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.339, 0.372, 0.12),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1297,7 +1190,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1307,7 +1200,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.360, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1322,7 +1215,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.12, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1332,7 +1225,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.287, 0.12),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -1342,9 +1235,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.304, 0.287, 0.074),
+        goal_xyz=(0.304, 0.287, 0.078),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
     )
     if arm_traj is not None:
@@ -1357,7 +1250,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.287, 0.12),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -1367,7 +1260,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1377,7 +1270,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.360, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1392,7 +1285,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.18, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1402,7 +1295,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.357, 0.12),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -1412,9 +1305,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.374, 0.357, 0.074),
+        goal_xyz=(0.374, 0.357, 0.078),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
     )
     if arm_traj is not None:
@@ -1427,7 +1320,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.357, 0.12),
         goal_quat_wxyz=(0.0, 0.923880,-0.382683, 0.0),
@@ -1437,7 +1330,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1447,7 +1340,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.360, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1462,7 +1355,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.24, 0.360, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1472,7 +1365,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.357, 0.12),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -1482,9 +1375,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.304, 0.357, 0.074),
+        goal_xyz=(0.304, 0.357, 0.078),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
     )
     if arm_traj is not None:
@@ -1497,7 +1390,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.304, 0.357, 0.12),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -1507,7 +1400,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.30, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1517,7 +1410,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.30, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1532,7 +1425,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.0, 0.30, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -1542,7 +1435,7 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.287, 0.12),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
@@ -1552,9 +1445,9 @@ def main():
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
-        goal_xyz=(0.374, 0.287, 0.074),
+        goal_xyz=(0.374, 0.287, 0.078),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),
     )
     if arm_traj is not None:
@@ -1567,7 +1460,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name=link_name_sim,
         frame_id="world",
         goal_xyz=(0.374, 0.287, 0.12),
         goal_quat_wxyz=(0.0, 0.923880, 0.382683, 0.0),

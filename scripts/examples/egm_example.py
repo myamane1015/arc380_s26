@@ -333,7 +333,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name="gripper_tcp_calibrated",
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
@@ -344,7 +344,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name="gripper_tcp_calibrated",
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
