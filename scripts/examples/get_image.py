@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 
 
-SHARED_DIR = Path("/realsense_shared")
+# SHARED_DIR = Path("/realsense_shared")    # For docker
+SHARED_DIR = Path(r"C:\Users\arc380\Downloads\arc380_s26\arc380_s26\realsense_shared")
 REQUEST_PATH = SHARED_DIR / "request.json"
 READY_PATH = SHARED_DIR / "ready.json"
 COLOR_PATH = SHARED_DIR / "color.png"
