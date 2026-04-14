@@ -6,6 +6,6 @@ with open('config.yaml', 'r') as f:
 workshop_path = config['workshop_path']
 max_height = config['max_height']
 link_name_sim = config['link_name_sim']
-link_name_real = config['link_name_real']  
+link_name_real = config['link_name_real']
 gripper_open = config['gripper_open']
 gripper_closed = config['gripper_closed']

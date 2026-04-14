@@ -337,8 +337,10 @@ class EGMClient(Node):
 
 def identify_next_block(image):
     # Implementation for identifying the next block
+    block_remaining = True
     block = Block()
-    return block
+    
+    return block_remaining, block
 
 def remove_block(block, node):
     # Implementation for removing a block from the tower
@@ -380,10 +382,137 @@ def remove_block(block, node):
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
-        
     
+    with open(config.workshop_path + '/final_project/base_block_location.csv', 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            data = line.strip().split(',')
+            if data[0] == block.block_id:
+                target_x = float(data[1])
+                target_y = float(data[2])
+                break
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=config.gripper_open,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
 
-def add_block(block, node, link_name_sim):
+
+def add_block(block, node):
+    x = block.x
+    y = block.y
+    z = block.z
+    rot = block.rotation
+    
+    with open(config.workshop_path + '/final_project/base_block_location.csv', 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            data = line.strip().split(',')
+            if data[0] == block.block_id:
+                target_x = float(data[1])
+                target_y = float(data[2])
+                break
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, 0.032),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=config.gripper_closed,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_quat_wxyz=rot,
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(x, y, z),
+        goal_quat_wxyz=rot,
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
+    node.send_gripper_command(
+        position=config.gripper_open,
+        max_velocity=0.05,
+    )
+    
+    arm_traj = node.plan_arm_to_pose_constraints(
+        group_name="arm",
+        link_name=config.link_name_real,
+        frame_id="world",
+        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_quat_wxyz=rot,
+    )
+    if arm_traj is not None:
+        node.execute_moveit_trajectory(arm_traj)
+    
     
     
     
@@ -397,7 +526,21 @@ def main():
     tower.block_list = []
     block_id = 0
     max_height = config.max_height
+    block_remaining = True
     
     rclpy.init()
     node = EGMClient()
+    
+    # Disassembly loop 
+    
+    while block_remaining:
+        # capture image
+        block_remaining, block = identify_next_block(image=None)
+        if block_remaining:
+            remove_block(block, node)
+            tower.block_list.append(block)
+    
+    # Assembly loop
+    for block in reversed(tower.block_list):
+        add_block(block, node)
     
