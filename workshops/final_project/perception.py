@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from cv2 import aruco
+from matplotlib import pyplot as plt
 
 img_path = 'raw_image.png'
 img = cv2.imread(img_path)
@@ -91,6 +92,11 @@ block_cluster_label = np.argmin(distances)
 # All pixels that belong to this cluster will be white, and all others will be black
 mask_img = np.zeros(kmeans_img.shape[:2], dtype='uint8')
 mask_img[labels == block_cluster_label] = 255
+
+plt.imshow(mask_img, cmap='gray')
+plt.title(f'Mask image for cluster {block_cluster_label} corresponding to dark green')
+plt.gca().invert_yaxis()
+plt.show()
 
 # Segment continuous regions
 # Parameters: input image, contour retrieval mode, contour approximation method
