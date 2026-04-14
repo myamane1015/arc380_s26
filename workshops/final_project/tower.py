@@ -35,7 +35,7 @@ class Tower:
         data = {
             'num_blocks': num_blocks,
             'blocks': [],
-            'tower_id': self.tower_id
+            'tower_id': tower_id
         }
         for block in block_list:
             block_data = {

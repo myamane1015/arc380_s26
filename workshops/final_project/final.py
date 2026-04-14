@@ -524,8 +524,6 @@ def main():
     tower_count = len([f for f in os.listdir(library_path) if os.path.isfile(os.path.join(library_path, f))])
     tower = Tower()
     tower.block_list = []
-    block_id = 0
-    max_height = config.max_height
     block_remaining = True
     
     rclpy.init()
@@ -543,4 +541,12 @@ def main():
     # Assembly loop
     for block in reversed(tower.block_list):
         add_block(block, node)
+    
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()
+    
     
