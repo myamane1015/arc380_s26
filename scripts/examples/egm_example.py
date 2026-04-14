@@ -337,7 +337,7 @@ def main():
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
-            
+        max_velocity_scaling=0.5,            
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
@@ -360,7 +360,7 @@ def main():
 
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
-        link_name="gripper_tcp",
+        link_name="gripper_tcp_calibrated",
         frame_id="world",
         goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
