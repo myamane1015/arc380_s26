@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from cv2 import aruco
 from matplotlib import pyplot as plt
 
-img_path = 'raw_image.png'
+img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\realsense_shared\color.png'
 img = cv2.imread(img_path)
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -81,10 +81,16 @@ centers = np.uint8(centers)
 # Rebuild the image using the labels and centers
 kmeans_data = centers[labels.flatten()]
 kmeans_img = kmeans_data.reshape(corrected_img.shape)
+
 labels = labels.reshape(corrected_img.shape[:2])
+
+plt.imshow(cv2.cvtColor(kmeans_img, cv2.COLOR_BGR2RGB))
+plt.title(f'Image classification using k-means clustering (k = {k})')
+plt.gca().invert_yaxis()
+plt.show()
     
 # Identify the cluster that is closest to the dark green color
-tan = np.array([0, 100, 0])
+tan = np.array([138, 111, 78])
 distances = np.linalg.norm(centers - tan, axis=1)
 block_cluster_label = np.argmin(distances)
 
@@ -104,3 +110,24 @@ contours, _ = cv2.findContours(mask_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NON
 
 areas = [cv2.contourArea(contour) for contour in contours]
 print(f'Area of each region: {areas}')
+block_idx = []
+for i in range(len(areas)):
+    if areas[i] > 20000:
+        block_idx.append(i)
+
+centers_pos = np.zeros([len(block_idx), 2])
+
+for i in range(len(block_idx)):
+    selected_contour = contours[block_idx[i]]
+    x, y, w, h = cv2.boundingRect(selected_contour)
+    centers_pos[i][0] = x + w//2
+    centers_pos[i][1] = y + h//2
+
+center_img = corrected_img.copy()
+for i in range(len(block_idx)):
+    cv2.circle(center_img, (int(centers_pos[i][0]), int(centers_pos[i][1])), 5, (255, 255, 0), -1)
+
+plt.imshow(cv2.cvtColor(center_img, cv2.COLOR_BGR2RGB))
+plt.title(f'Center of the selected contour for label {block_cluster_label}')
+plt.gca().invert_yaxis()
+plt.show()
