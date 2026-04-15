@@ -40,3 +40,16 @@ with torch.no_grad():
     depth = model(input_tensor)
 
 depth_map = depth.squeeze().cpu().numpy()
+import matplotlib.pyplot as plt
+
+# Normalize depth map to 0-1 range
+depth_normalized = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+
+# Display with colormap
+plt.figure(figsize=(10, 8))
+plt.imshow(depth_normalized, cmap='viridis')
+plt.colorbar(label='Depth')
+plt.title('Depth Map')
+plt.axis('off')
+plt.tight_layout()
+plt.show()
