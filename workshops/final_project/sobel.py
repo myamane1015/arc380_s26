@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from cv2 import aruco
+from matplotlib import pyplot as plt
 
 
 def apply_sobel_edge_detection(image_path, output_path=None):
@@ -86,17 +87,12 @@ def apply_sobel_edge_detection(image_path, output_path=None):
     else:
         sobel_edges = np.zeros_like(corrected_gray, dtype=np.uint8)
     
-    # Find contours in the Sobel edge image
-    contours, _ = cv2.findContours(sobel_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _, binary = cv2.threshold(sobel_edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # Find the bounding rectangle around all contours
-    if contours:
-        x, y, w, h = cv2.boundingRect(np.concatenate(contours))
-        # Draw bounding box on the Sobel image
-        sobel_edges = cv2.rectangle(sobel_edges, (x, y), (x + w, y + h), 255, 2)
-        
-    # Draw all contours on the Sobel image
-    cv2.drawContours(sobel_edges, contours, -1, 255, 2)
+    plt.imshow(binary, cmap='gray')
+    plt.title('Binary Edge Detection')
+    plt.axis('off')
+    plt.show()
     
     # Save output if path provided
     if output_path:
@@ -106,8 +102,8 @@ def apply_sobel_edge_detection(image_path, output_path=None):
 
 
 if __name__ == "__main__":
-    input_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\color.png"
-    output_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\sobel_output.jpg"
+    input_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\realsense_shared\color.png"
+    output_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\realsense_shared\sobel_output.jpg"
 
     result = apply_sobel_edge_detection(input_image, output_image)
     print(f"Sobel edge detection complete. Output saved to {output_image}")
