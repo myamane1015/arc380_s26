@@ -9,3 +9,8 @@ link_name_sim = config['link_name_sim']
 link_name_real = config['link_name_real']
 gripper_open = config['gripper_open']
 gripper_closed = config['gripper_closed']
+
+colors_r = config['colors_r']
+colors_g = config['colors_g']
+colors_b = config['colors_b']
+

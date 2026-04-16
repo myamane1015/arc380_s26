@@ -4,3 +4,7 @@ link_name_sim: "gripper_tcp"
 link_name_real: "gripper_tcp_calibrated"
 gripper_open: 0.0
 gripper_closed: 0.01
+
+colors_r: 
+colors_g: 
+colors_b: 
