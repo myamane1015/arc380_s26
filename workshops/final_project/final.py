@@ -1,12 +1,23 @@
+import random
+import shutil
+
 import numpy as np
 import open3d as o3d
-import Tower 
-import Block
+from tower import Tower 
+from tower import Block
 import yaml
 import os
 import cv2
+import sys
+sys.path.append(r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\scripts\examples")
+
+from scipy.spatial.transform import Rotation as R
+
 
 from cv2 import aruco
+import Path
+
+import get_image
 
 import time
 from typing import Optional
@@ -339,7 +350,6 @@ class EGMClient(Node):
         return True
 
 def identify_next_block(img, layer_number):
-    # Implementation for identifying the next block
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # Load the predefined dictionary where our markers are printed from
@@ -398,8 +408,7 @@ def identify_next_block(img, layer_number):
     img_data = np.float32(img_data)
 
     # Define the number of clusters
-    k = 3
-
+    k = layer_number + 2
     # Define the criteria for the k-means algorithm
     # This is a tuple with three elements: (type of termination criteria, maximum number of iterations, epsilon/required accuracy)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
@@ -418,10 +427,48 @@ def identify_next_block(img, layer_number):
 
     labels = labels.reshape(corrected_img.shape[:2])
     
-    block_remaining = True
-    block = Block()
+    color = np.array([config.colors_r[layer_number], config.colors_g[layer_number], config.colors_b[layer_number]])
+    distances = np.linalg.norm(centers[:, ::-1] - color, axis=1)
+    block_cluster_label = np.argmin(distances)
     
-    return block_remaining, block
+    mask_img = np.zeros(kmeans_img.shape[:2], dtype='uint8')
+    mask_img[labels == block_cluster_label] = 255
+
+    contours, _ = cv2.findContours(mask_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    areas = [cv2.contourArea(contour) for contour in contours]
+    print(f'Area of each region: {areas}')
+    block_idx = []
+    for i in range(len(areas)):
+        if areas[i] > 20000:
+            block_idx.append(i)
+
+    centers_pos = np.zeros([len(block_idx), 2])
+
+    for i in range(len(block_idx)):
+        selected_contour = contours[block_idx[i]]
+        x, y, w, h = cv2.boundingRect(selected_contour)
+        centers_pos[i][0] = x + w//2
+        centers_pos[i][1] = y + h//2
+    
+    
+    angles = np.zeros(len(block_idx))
+    for i in range(len(block_idx)):
+        selected_contour = contours[block_idx[i]]
+        rect = cv2.minAreaRect(selected_contour)
+        angle = rect[2]
+        angles[i] = angle
+    
+    block_list = []
+    for i in range(len(block_idx)):
+        block = Block()
+        block.x = centers_pos[i][0] + config.offset_x
+        block.y = centers_pos[i][1] + config.offset_y
+        block.z = 0.014*(layer_number - 1) + 0.032
+        block.rotation = R.from_euler('xyz', [angles[i], 0, 0], degrees = True).as_quat()
+        block_list.append(block)
+    
+    return block_list
 
 def remove_block(block, node):
     # Implementation for removing a block from the tower
@@ -464,14 +511,8 @@ def remove_block(block, node):
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
     
-    with open(config.workshop_path + '/final_project/base_block_location.csv', 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            data = line.strip().split(',')
-            if data[0] == block.block_id:
-                target_x = float(data[1])
-                target_y = float(data[2])
-                break
+    target_x = config.base_block_locations[block.block_id][1]
+    target_y = config.base_block_locations[block.block_id][2]
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
@@ -509,20 +550,14 @@ def remove_block(block, node):
         node.execute_moveit_trajectory(arm_traj)
 
 
-def add_block(block, node):
+def add_block(block, node, numbers):
     x = block.x
     y = block.y
     z = block.z
     rot = block.rotation
     
-    with open(config.workshop_path + '/final_project/base_block_location.csv', 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            data = line.strip().split(',')
-            if data[0] == block.block_id:
-                target_x = float(data[1])
-                target_y = float(data[2])
-                break
+    target_x = config.base_block_locations[numbers[block.block_id]][1]
+    target_y = config.base_block_locations[numbers[block.block_id]][2]
     
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
@@ -593,10 +628,6 @@ def add_block(block, node):
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
-    
-    
-    
-    
 
 def main():
     
@@ -610,21 +641,33 @@ def main():
     rclpy.init()
     node = EGMClient()
     
-    # Human makes tower, capture by layer 
+    folder = Path(config.workshop_path + '/final_project/layers')
+
+    for item in folder.iterdir():
+        if item.is_file() or item.is_symlink():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)
     
-    
-    # Disassembly loop 
-    
-    while block_remaining:
-        # capture image
-        block_remaining, block = identify_next_block(image=None, layer_number)
-        if block_remaining:
+    total_layers = int(input("When finished, enter total number of layers as a single number."))
+
+    # Disassembly loop
+    for i in reversed(range(total_layers)):
+        image = get_image.request_capture()
+        block_list = identify_next_block(image, i+1)
+        for block in block_list:
             remove_block(block, node)
             tower.block_list.append(block)
+    tower.num_blocks = len(tower.block_list)
+    tower.tower_id = tower_count + 1
     
+    tower.import_to_json(config.workshop_path + f'/final_project/tower_library/tower_{tower.tower_id}.json')
+    numbers = random.sample(range(0, tower.num_blocks), tower.num_blocks)
+
     # Assembly loop
     for block in reversed(tower.block_list):
-        add_block(block, node)
+        add_block(block, node, numbers)
+    
     
     node.destroy_node()
     rclpy.shutdown()

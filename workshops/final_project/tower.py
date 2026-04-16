@@ -1,12 +1,12 @@
 import json
 
 class Block:
-    def __init__(self, block_id, x, y, z, rotation):
-        self.block_id = block_id
-        self.x = x
-        self.y = y
-        self.z = z
-        self.rotation = rotation
+    def __init__(self):
+        self.block_id = None
+        self.x = None
+        self.y = None
+        self.z = None
+        self.rotation = None
 
 class Tower:
     def __init__(self):
@@ -31,13 +31,13 @@ class Tower:
             )
             self.block_list.append(block)
     
-    def import_to_json(self, json_file, num_blocks, block_list, tower_id):
+    def import_to_json(self, json_file):
         data = {
-            'num_blocks': num_blocks,
+            'num_blocks': self.num_blocks,
             'blocks': [],
-            'tower_id': tower_id
+            'tower_id': self.tower_id
         }
-        for block in block_list:
+        for block in self.block_list:
             block_data = {
                 'block_id': block.block_id,
                 'x': block.x,
