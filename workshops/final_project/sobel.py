@@ -17,9 +17,9 @@ def apply_sobel_edge_detection(image_path, output_path=None):
     """
     # Read image in grayscale
     
-    img_path = r'C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\color.png'
+    img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_2\layer_4.JPG'
     img = cv2.imread(img_path)
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # Load the predefined dictionary where our markers are printed from
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
@@ -72,6 +72,8 @@ def apply_sobel_edge_detection(image_path, output_path=None):
     # Crop the output image to the specified dimensions
     corrected_img = corrected_img[:int(height*ppi), :int(width*ppi)]
     
+    #cv2.imwrite(r"C:\Users\arc380\Downloads\arc380_s26\arc380_s26\realsense_shared\cut_color.jpg", corrected_img)
+
     # Convert to grayscale so contours can be extracted from a single-channel image
     corrected_gray = cv2.cvtColor(corrected_img, cv2.COLOR_BGR2GRAY)
 
@@ -87,12 +89,7 @@ def apply_sobel_edge_detection(image_path, output_path=None):
     else:
         sobel_edges = np.zeros_like(corrected_gray, dtype=np.uint8)
     
-    _, binary = cv2.threshold(sobel_edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    plt.imshow(binary, cmap='gray')
-    plt.title('Binary Edge Detection')
-    plt.axis('off')
-    plt.show()
+    
     
     # Save output if path provided
     if output_path:
@@ -102,8 +99,8 @@ def apply_sobel_edge_detection(image_path, output_path=None):
 
 
 if __name__ == "__main__":
-    input_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\realsense_shared\color.png"
-    output_image = r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\realsense_shared\sobel_output.jpg"
+    input_image = r"C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_0\layer_1.JPG"
+    output_image = r"C:\Users\arc380\Downloads\arc380_s26\arc380_s26\realsense_shared\sobel_output.jpg"
 
     result = apply_sobel_edge_detection(input_image, output_image)
     print(f"Sobel edge detection complete. Output saved to {output_image}")

@@ -4,9 +4,9 @@ from matplotlib import pyplot as plt
 from cv2 import aruco
 from matplotlib import pyplot as plt
 
-img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\realsense_shared\color.png'
+img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_2\layer_1.JPG'
 img = cv2.imread(img_path)
-img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # Load the predefined dictionary where our markers are printed from
 dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
@@ -64,7 +64,7 @@ img_data = corrected_img.reshape((-1, 3))
 img_data = np.float32(img_data)
 
 # Define the number of clusters
-k = 3
+k = 4
 
 # Define the criteria for the k-means algorithm
 # This is a tuple with three elements: (type of termination criteria, maximum number of iterations, epsilon/required accuracy)
@@ -84,13 +84,13 @@ kmeans_img = kmeans_data.reshape(corrected_img.shape)
 
 labels = labels.reshape(corrected_img.shape[:2])
 
-plt.imshow(cv2.cvtColor(kmeans_img, cv2.COLOR_BGR2RGB))
+plt.imshow(kmeans_img)
 plt.title(f'Image classification using k-means clustering (k = {k})')
 plt.gca().invert_yaxis()
 plt.show()
     
 # Identify the cluster that is closest to the dark green color
-tan = np.array([138, 111, 78])
+tan = np.array([241, 222, 186])
 distances = np.linalg.norm(centers - tan, axis=1)
 block_cluster_label = np.argmin(distances)
 
