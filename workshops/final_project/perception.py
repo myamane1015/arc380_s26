@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from cv2 import aruco
 from matplotlib import pyplot as plt
 
-img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_2\layer_3.JPG'
+img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_3\layer_4.JPG'
 img = cv2.imread(img_path)
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -83,20 +83,19 @@ kmeans_data = centers[labels.flatten()]
 kmeans_img = kmeans_data.reshape(corrected_img.shape)
 
 labels = labels.reshape(corrected_img.shape[:2])
-kmeans_img = cv2.cvtColor(kmeans_img, cv2.COLOR_BGR2RGB)
 
 
-plt.imshow(kmeans_img)
+plt.imshow(cv2.cvtColor(kmeans_img, cv2.COLOR_BGR2RGB))
 plt.title(f'Image classification using k-means clustering (k = {k})')
 plt.gca().invert_yaxis()
 plt.show()
     
 # Identify the cluster that is closest to the dark green color
-tan = np.array([0, 28, 61]) #layer one
-tan = np.array([205, 180, 144]) #layer two
-tan = np.array([192, 104, 30]) #layer three
-tan = np.array([110, 139, 136]) #layer four
-#tan = np.array([0, 98, 159]) #layer five
+#tan = np.array([0, 28, 61]) #layer one
+#tan = np.array([205, 180, 144]) #layer two
+#tan = np.array([91, 128, 129]) #layer three
+#tan = np.array([151, 45, 0]) #layer four
+tan = np.array([0, 98, 159]) #layer five
 distances = np.linalg.norm(centers[:, ::-1] - tan, axis=1)
 block_cluster_label = np.argmin(distances)
 
