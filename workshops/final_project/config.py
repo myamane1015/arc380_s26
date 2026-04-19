@@ -5,7 +5,6 @@ with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
 
 workshop_path = config['workshop_path']
-max_height = config['max_height']
 link_name_sim = config['link_name_sim']
 link_name_real = config['link_name_real']
 gripper_open = config['gripper_open']
@@ -17,5 +16,7 @@ colors_b = config['colors_b']
 
 offset_x = config['offset_x']
 offset_y = config['offset_y']
+
+transformation_matrix = config['transformation_matrix']
 
 base_block_locations = np.loadtxt(config['base_block_locations'], delimiter=',')

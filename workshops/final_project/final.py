@@ -9,15 +9,16 @@ import yaml
 import os
 import cv2
 import sys
-sys.path.append(r"C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\scripts\examples")
+# sys.path.append(r"C:\Users\arc380\Downloads\arc380_s26\arc380_s26\scripts\examples")
 
 from scipy.spatial.transform import Rotation as R
 
 
 from cv2 import aruco
-import Path
+from pathlib import Path
 
-import get_image
+# import get_image
+from get_image import request_capture
 
 import time
 from typing import Optional
@@ -425,22 +426,25 @@ def identify_next_block(img, layer_number):
     kmeans_data = centers[labels.flatten()]
     kmeans_img = kmeans_data.reshape(corrected_img.shape)
 
+    cv2.imwrite("kmeans.png", kmeans_img)
+
     labels = labels.reshape(corrected_img.shape[:2])
     
-    color = np.array([config.colors_r[layer_number], config.colors_g[layer_number], config.colors_b[layer_number]])
+    color = np.array([config.colors_r[layer_number-1], config.colors_g[layer_number-1], config.colors_b[layer_number-1]])
     distances = np.linalg.norm(centers[:, ::-1] - color, axis=1)
     block_cluster_label = np.argmin(distances)
     
     mask_img = np.zeros(kmeans_img.shape[:2], dtype='uint8')
     mask_img[labels == block_cluster_label] = 255
 
+    cv2.imwrite("mask.png", mask_img)
+
     contours, _ = cv2.findContours(mask_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     areas = [cv2.contourArea(contour) for contour in contours]
-    print(f'Area of each region: {areas}')
     block_idx = []
     for i in range(len(areas)):
-        if areas[i] > 20000:
+        if areas[i] > 16000:
             block_idx.append(i)
 
     centers_pos = np.zeros([len(block_idx), 2])
@@ -459,33 +463,64 @@ def identify_next_block(img, layer_number):
         angle = rect[2]
         angles[i] = angle
     
+    print("Number of blocks: " + str(len(block_idx)))
+
     block_list = []
     for i in range(len(block_idx)):
         block = Block()
-        block.x = centers_pos[i][0] + config.offset_x
-        block.y = centers_pos[i][1] + config.offset_y
-        block.z = 0.014*(layer_number - 1) + 0.032
-        block.rotation = R.from_euler('xyz', [angles[i], 0, 0], degrees = True).as_quat()
+        block.block_id = (layer_number-1) * 2 + i
+        block.x = centers_pos[i][0]/72*0.0254
+        block.y = centers_pos[i][1]/72*0.0254
+        block.z = 0.014*(layer_number - 1) + 0.039
+        block.rotation = angles[i]
         block_list.append(block)
     
     return block_list
 
-def remove_block(block, node):
+def rotation_matrix_to_quaternion(R):
+    r11, r12, r13 = R[0]
+    r21, r22, r23 = R[1]
+    r31, r32, r33 = R[2]
+
+    q0 = 0.5 * np.sqrt(1 + r11 + r22 + r33)
+    q1 = 0.5 * np.sqrt(1 + r11 - r22 - r33) * np.sign(r32 - r23)
+    q2 = 0.5 * np.sqrt(1 - r11 + r22 - r33) * np.sign(r13 - r31)
+    q3 = 0.5 * np.sqrt(1 - r11 - r22 + r33) * np.sign(r21 - r12)
+
+    return np.array([q0, q1, q2, q3])
+
+
+def remove_block(block, node, total_layers):
     # Implementation for removing a block from the tower
     x = block.x
     y = block.y
     z = block.z
-    rot = block.rotation
+    ang = block.rotation
+    rot_matrix = np.array([[np.cos(ang), -np.sin(ang)], [np.sin(ang), np.cos(ang)]])
+    frame_matrix = np.zeros([3,3])
+    frame_matrix[0:2, 0:2] = rot_matrix
+    frame_matrix[0:2, 2:3] = np.array([[x], [y]])
+    frame_matrix[2,2] = 1
+    new_frame_matrix = config.transformation_matrix * frame_matrix
+    x = new_frame_matrix[0, 2]
+    y = new_frame_matrix[1, 2]
+    rot = R.from_euler('xyz', [180, 0, -ang], degrees = True).as_quat()
+    rot = [0, 1.0, 0, 0]
+    print(rot)
+    print("x: " + str(x))
+    print("y: " + str(y))
+    print("z: " + str(0.014*total_layers + 0.1))
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_xyz=(0.0, 0.480, 0.1),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
 
+    print("down")
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
         link_name=config.link_name_real,
@@ -497,15 +532,16 @@ def remove_block(block, node):
         node.execute_moveit_trajectory(arm_traj)
     
     node.send_gripper_command(
-        position=config.gripper_closed,
+        position=config.gripper_open,
         max_velocity=0.05,
     )
     
+    print("up")
     arm_traj = node.plan_arm_to_pose_constraints(
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_xyz=(x, y, total_layers + 0.1),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
@@ -518,7 +554,7 @@ def remove_block(block, node):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_xyz=(target_x, target_y, total_layers + 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -528,7 +564,7 @@ def remove_block(block, node):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, 0.032),
+        goal_xyz=(target_x, target_y, 0.039),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -543,18 +579,27 @@ def remove_block(block, node):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_xyz=(target_x, target_y, total_layers + 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
 
 
-def add_block(block, node, numbers):
+def add_block(block, node, numbers, total_layers):
     x = block.x
     y = block.y
     z = block.z
     rot = block.rotation
+
+    rot_matrix = [[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]]
+    frame_matrix = np.zeros([3,3])
+    frame_matrix[0:2, 0:2] = rot_matrix
+    frame_matrix[0:2, 2:3] = np.array([[x], [y]])
+    frame_matrix[2,2] = 1
+    new_frame_matrix = config.transformation_matrix * frame_matrix
+    x = new_frame_matrix[0, 2]
+    y = new_frame_matrix[1, 2]
     
     target_x = config.base_block_locations[numbers[block.block_id]][1]
     target_y = config.base_block_locations[numbers[block.block_id]][2]
@@ -563,7 +608,7 @@ def add_block(block, node, numbers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_xyz=(target_x, target_y, total_layers + 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -573,7 +618,7 @@ def add_block(block, node, numbers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, 0.032),
+        goal_xyz=(target_x, target_y, 0.039),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -588,7 +633,7 @@ def add_block(block, node, numbers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, config.max_height + 0.1),
+        goal_xyz=(target_x, target_y, total_layers + 0.1),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -598,7 +643,7 @@ def add_block(block, node, numbers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_xyz=(x, y, total_layers + 0.1),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
@@ -623,13 +668,14 @@ def add_block(block, node, numbers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, config.max_height + 0.1),
+        goal_xyz=(x, y, total_layers + 0.1),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
         node.execute_moveit_trajectory(arm_traj)
 
 def main():
+    
     
     
     library_path = config.workshop_path + '/final_project/tower_library'
@@ -640,6 +686,11 @@ def main():
     
     rclpy.init()
     node = EGMClient()
+
+    node.send_gripper_command(
+        position=config.gripper_closed,
+        max_velocity=0.05,
+    )
     
     folder = Path(config.workshop_path + '/final_project/layers')
 
@@ -653,10 +704,10 @@ def main():
 
     # Disassembly loop
     for i in reversed(range(total_layers)):
-        image = get_image.request_capture()
+        image,_, _ = request_capture()
         block_list = identify_next_block(image, i+1)
         for block in block_list:
-            remove_block(block, node)
+            remove_block(block, node, total_layers)
             tower.block_list.append(block)
     tower.num_blocks = len(tower.block_list)
     tower.tower_id = tower_count + 1
@@ -666,7 +717,7 @@ def main():
 
     # Assembly loop
     for block in reversed(tower.block_list):
-        add_block(block, node, numbers)
+        add_block(block, node, numbers, total_layers)
     
     
     node.destroy_node()

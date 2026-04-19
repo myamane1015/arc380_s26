@@ -61,10 +61,6 @@ RUN apt-get update && apt-get install -y \
 # ── rosdep init ───────────────────────────────────────────────────────────────
 RUN rosdep init && rosdep update
 
-RUN python3 -m pip install --no-cache-dir --break-system-packages --ignore-installed \
-    "protobuf==6.31.1" \
-    "opencv-contrib-python-headless"
-
 
 FROM base AS workspace
 
@@ -103,6 +99,14 @@ ENV GZ_SIM_RESOURCE_PATH=\
 
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> /etc/bash.bashrc && \
     echo 'source /ros2_ws/install/setup.bash' >> /etc/bash.bashrc
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages --ignore-installed \
+    "protobuf==6.31.1" \
+    "opencv-contrib-python-headless" \
+    "open3d" \
+    "scipy" \
+    "pyyaml" \
+    "Path"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 COPY entrypoint.sh /entrypoint.sh

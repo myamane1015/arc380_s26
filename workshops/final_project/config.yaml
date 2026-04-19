@@ -1,15 +1,17 @@
-workshop_path: C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\workshops
-max_height: 5
+workshop_path: /workshops
 link_name_sim: "gripper_tcp"
-link_name_real: "gripper_tcp_calibrated"
+link_name_real: "vacuum_tcp_calibrated"
+
+transformation_matrix: [[0, -1, -0.068], [1, 0, 0.271], [0, 0, 1]]
+
 gripper_open: 0.0
 gripper_closed: 0.01
 
-colors_r: [0, 205, 91, 151, 0]
-colors_g: [28, 180, 128, 45, 98]
-colors_b: [61, 144, 129, 0, 159]
+colors_r: [125, 0, 133, 12, 3]
+colors_g: [76, 22, 44, 86, 50]
+colors_b: [0, 44, 5, 74, 67]
 
 offset_x: 0.0 #to fix 
 offset_y: 0.0 #to fix
 
-base_block_locations: C:\Users\miyum\Downloads\ARC380\arc380_s26_fork\arc380_s26\workshops\final_project\base_block_locations.csv
+base_block_locations: /workshops/final_project/base_block_location.csv
