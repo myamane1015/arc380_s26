@@ -477,18 +477,6 @@ def identify_next_block(img, layer_number):
     
     return block_list
 
-def rotation_matrix_to_quaternion(R):
-    r11, r12, r13 = R[0]
-    r21, r22, r23 = R[1]
-    r31, r32, r33 = R[2]
-
-    q0 = 0.5 * np.sqrt(1 + r11 + r22 + r33)
-    q1 = 0.5 * np.sqrt(1 + r11 - r22 - r33) * np.sign(r32 - r23)
-    q2 = 0.5 * np.sqrt(1 - r11 + r22 - r33) * np.sign(r13 - r31)
-    q3 = 0.5 * np.sqrt(1 - r11 - r22 + r33) * np.sign(r21 - r12)
-
-    return np.array([q0, q1, q2, q3])
-
 
 def remove_block(block, node, total_layers):
     # Implementation for removing a block from the tower
@@ -505,6 +493,7 @@ def remove_block(block, node, total_layers):
     x = new_frame_matrix[0, 2]
     y = new_frame_matrix[1, 2]
     rot = R.from_euler('xyz', [180, 0, ang+90], degrees = True).as_quat()
+    rot = tuple(rot[[3, 0, 1, 2]])
     print(rot)
     print("x: " + str(x))
     print("y: " + str(y))
@@ -589,16 +578,17 @@ def add_block(block, node, numbers, total_layers):
     x = block.x
     y = block.y
     z = block.z
-    rot = block.rotation
-
-    rot_matrix = [[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]]
+    ang = block.rotation
+    rot_matrix = np.array([[np.cos(ang), -np.sin(ang)], [np.sin(ang), np.cos(ang)]])
     frame_matrix = np.zeros([3,3])
     frame_matrix[0:2, 0:2] = rot_matrix
     frame_matrix[0:2, 2:3] = np.array([[x], [y]])
     frame_matrix[2,2] = 1
-    new_frame_matrix = config.transformation_matrix * frame_matrix
+    new_frame_matrix = np.linalg.inv(np.array([[0, -1, -0.068], [1, 0, 0.271], [0, 0, 1]])) @ frame_matrix
     x = new_frame_matrix[0, 2]
     y = new_frame_matrix[1, 2]
+    rot = R.from_euler('xyz', [180, 0, ang+90], degrees = True).as_quat()
+    rot = tuple(rot[[3, 0, 1, 2]])
     
     target_x = config.base_block_locations[numbers[block.block_id]][1]
     target_y = config.base_block_locations[numbers[block.block_id]][2]
