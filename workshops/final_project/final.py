@@ -501,11 +501,10 @@ def remove_block(block, node, total_layers):
     frame_matrix[0:2, 0:2] = rot_matrix
     frame_matrix[0:2, 2:3] = np.array([[x], [y]])
     frame_matrix[2,2] = 1
-    new_frame_matrix = config.transformation_matrix * frame_matrix
+    new_frame_matrix = np.linalg.inv(np.array([[0, -1, -0.068], [1, 0, 0.271], [0, 0, 1]])) @ frame_matrix
     x = new_frame_matrix[0, 2]
     y = new_frame_matrix[1, 2]
-    rot = R.from_euler('xyz', [180, 0, -ang], degrees = True).as_quat()
-    rot = [0, 1.0, 0, 0]
+    rot = R.from_euler('xyz', [180, 0, ang+90], degrees = True).as_quat()
     print(rot)
     print("x: " + str(x))
     print("y: " + str(y))
@@ -675,9 +674,6 @@ def add_block(block, node, numbers, total_layers):
         node.execute_moveit_trajectory(arm_traj)
 
 def main():
-    
-    
-    
     library_path = config.workshop_path + '/final_project/tower_library'
     tower_count = len([f for f in os.listdir(library_path) if os.path.isfile(os.path.join(library_path, f))])
     tower = Tower()
@@ -700,7 +696,7 @@ def main():
         elif item.is_dir():
             shutil.rmtree(item)
     
-    total_layers = int(input("When finished, enter total number of layers as a single number."))
+    total_layers = int(input("When finished, enter total number of layers as a single integer: "))
 
     # Disassembly loop
     for i in reversed(range(total_layers)):
