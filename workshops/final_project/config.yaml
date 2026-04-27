@@ -1,17 +1,19 @@
 workshop_path: /workshops
 link_name_sim: "gripper_tcp"
-link_name_real: "vacuum_tcp_calibrated"
+link_name_real: "vacuum_tcp_group4"
 
 transformation_matrix: [[0, -1, -0.068], [1, 0, 0.271], [0, 0, 1]]
 
 gripper_open: 0.0
 gripper_closed: 0.01
 
-colors_r: [125, 0, 133, 12, 3]
-colors_g: [76, 22, 44, 86, 50]
-colors_b: [0, 44, 5, 74, 67]
+randomized: True
 
-offset_x: 0.0 #to fix 
-offset_y: 0.0 #to fix
+colors_r: [125, 0, 3, 133, 12]
+colors_g: [76, 22, 50, 44, 86]
+colors_b: [0, 44, 67, 5, 74]
+
+offset_x: -0.068  
+offset_y: 0.271
 
 base_block_locations: /workshops/final_project/base_block_location.csv

@@ -7,6 +7,7 @@ class Block:
         self.y = None
         self.z = None
         self.rotation = None
+        self.layer = None
 
 class Tower:
     def __init__(self):
@@ -23,12 +24,13 @@ class Tower:
         self.block_list = []
         for block_data in data['blocks']:
             block = Block(
-                block_id=block_data['block_id'],
-                x=block_data['x'],
-                y=block_data['y'],
-                z=block_data['z'],
-                rotation=block_data['rotation']
             )
+            block.block_id=block_data['block_id']
+            block.x=block_data['x']
+            block.y=block_data['y']
+            block.z=block_data['z']
+            block.rotation=block_data['rotation']
+            block.layer=block_data['layer']
             self.block_list.append(block)
     
     def import_to_json(self, json_file):

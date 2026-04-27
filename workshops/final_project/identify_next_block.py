@@ -96,26 +96,38 @@ def identify_next_block(img, layer_number):
     contours, _ = cv2.findContours(mask_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     areas = [cv2.contourArea(contour) for contour in contours]
+    print("Areas: " + str(areas))
     block_idx = []
     for i in range(len(areas)):
         if areas[i] > 16000:
             block_idx.append(i)
+    
 
     centers_pos = np.zeros([len(block_idx), 2])
+
+    
 
     for i in range(len(block_idx)):
         selected_contour = contours[block_idx[i]]
         x, y, w, h = cv2.boundingRect(selected_contour)
         centers_pos[i][0] = x + w//2
         centers_pos[i][1] = y + h//2
-    
+
+    center_img = corrected_img.copy()
+    for i in range(len(block_idx)):
+        cv2.circle(center_img, (int(centers_pos[i][0]), int(centers_pos[i][1])), 5, (255, 255, 0), -1)
+    cv2.imwrite("center.png", center_img)
+
     
     angles = np.zeros(len(block_idx))
     for i in range(len(block_idx)):
         selected_contour = contours[block_idx[i]]
         rect = cv2.minAreaRect(selected_contour)
         angle = rect[2]
+        if rect[1][0] > rect[1][1]:
+            angle = angle + 90
         angles[i] = angle
+        
     
     print("Number of blocks: " + str(len(block_idx)))
 
@@ -123,10 +135,11 @@ def identify_next_block(img, layer_number):
     for i in range(len(block_idx)):
         block = Block()
         block.block_id = (layer_number-1) * 2 + i
-        block.x = centers_pos[i][0]/72*0.0254
-        block.y = centers_pos[i][1]/72*0.0254
-        block.z = 0.014*(layer_number - 1) + 0.039
+        block.x = centers_pos[i][0]/96*0.0254
+        block.y = centers_pos[i][1]/96*0.0254
+        block.z = 0.014*(layer_number) + 0.019
         block.rotation = angles[i]
         block_list.append(block)
+        block.layer = layer_number
     
     return block_list

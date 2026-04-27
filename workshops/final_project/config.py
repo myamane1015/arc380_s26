@@ -17,6 +17,8 @@ colors_b = config['colors_b']
 offset_x = config['offset_x']
 offset_y = config['offset_y']
 
+randomized = config['randomized']
+
 transformation_matrix = config['transformation_matrix']
 
 base_block_locations = np.loadtxt(config['base_block_locations'], delimiter=',')

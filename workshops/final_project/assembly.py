@@ -353,41 +353,17 @@ class EGMClient(Node):
         return True
 
 def main():
-    library_path = config.workshop_path + '/final_project/tower_library'
-    tower_count = len([f for f in os.listdir(library_path) if os.path.isfile(os.path.join(library_path, f))])
     tower = Tower()
     tower.block_list = []
-    
+
     rclpy.init()
     node = EGMClient()
     
-    
-    total_layers = int(input("When finished, enter total number of layers as a single integer: "))
+    tower.load_from_json(config.workshop_path + f'/final_project/tower_library/tower_16.json')
 
     # Disassembly loop
-    for i in reversed(range(total_layers)):
-        image,_, _ = request_capture()
-        block_list = identify_next_block(image, i+1)
-        for block in block_list:
-            remove_block(block, node, total_layers)
-            tower.block_list.append(block)
-        arm_traj = node.plan_arm_to_pose_constraints(
-            group_name="arm",
-            link_name=config.link_name_real,
-            frame_id="world",
-            goal_xyz=(0.3, 0, 0.014*(total_layers+1) + 0.032),
-            goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
-        )
-        if arm_traj is not None:
-            node.execute_moveit_trajectory(arm_traj)
-    tower.num_blocks = len(tower.block_list)
-    tower.tower_id = tower_count + 1
-    
-    tower.import_to_json(config.workshop_path + f'/final_project/tower_library/tower_{tower.tower_id}.json')
-    if config.randomized:
-        numbers = random.sample(range(0, tower.num_blocks), tower.num_blocks)
-    else:
-        numbers = range(0, tower.num_blocks)
+    numbers = random.sample(range(0, tower.num_blocks), tower.num_blocks)
+    total_layers = int(input("Enter total number of layers as a single integer: "))
 
     # Assembly loop
     for block in reversed(tower.block_list):

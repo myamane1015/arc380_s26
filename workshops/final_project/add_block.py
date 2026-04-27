@@ -7,17 +7,10 @@ def add_block(block, node, numbers, total_layers):
     y = block.y
     z = block.z
     ang = block.rotation
-    rot_matrix = np.array([[np.cos(ang), -np.sin(ang)], [np.sin(ang), np.cos(ang)]])
-    frame_matrix = np.zeros([3,3])
-    frame_matrix[0:2, 0:2] = rot_matrix
-    frame_matrix[0:2, 2:3] = np.array([[x], [y]])
-    frame_matrix[2,2] = 1
-    new_frame_matrix = np.linalg.inv(np.array([[0, -1, -0.068], [1, 0, 0.271], [0, 0, 1]])) @ frame_matrix
-    x = new_frame_matrix[0, 2]
-    y = new_frame_matrix[1, 2]
-    rot = R.from_euler('xyz', [180, 0, ang+90], degrees = True).as_quat()
+    x = config.offset_x - block.y + block.layer * 0.006
+    y = config.offset_y + block.x - 0.002
+    rot = R.from_euler('xyz', [180, 0, ang], degrees = True).as_quat()
     rot = tuple(rot[[3, 0, 1, 2]])
-    
     target_x = config.base_block_locations[numbers[block.block_id]][1]
     target_y = config.base_block_locations[numbers[block.block_id]][2]
     
@@ -25,7 +18,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, total_layers + 0.1),
+        goal_xyz=(target_x, target_y, 0.014*(total_layers+1) + 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -35,7 +28,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, 0.039),
+        goal_xyz=(target_x, target_y, 0.033),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -50,7 +43,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(target_x, target_y, total_layers + 0.1),
+        goal_xyz=(target_x, target_y, 0.014*(total_layers+1) + 0.032),
         goal_quat_wxyz=(0.0, 1.0, 0.0, 0.0),
     )
     if arm_traj is not None:
@@ -60,7 +53,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, total_layers + 0.1),
+        goal_xyz=(x, y, 0.014*(total_layers+1) + 0.032),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
@@ -70,7 +63,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, z),
+        goal_xyz=(x, y, z+0.003),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
@@ -85,7 +78,7 @@ def add_block(block, node, numbers, total_layers):
         group_name="arm",
         link_name=config.link_name_real,
         frame_id="world",
-        goal_xyz=(x, y, total_layers + 0.1),
+        goal_xyz=(x, y, 0.014*(total_layers+1) + 0.032),
         goal_quat_wxyz=rot,
     )
     if arm_traj is not None:
