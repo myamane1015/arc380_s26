@@ -11,7 +11,7 @@ def remove_block(block, node, total_layers):
     print("center y: " + str(block.y))
     ang = block.rotation
     x = config.offset_x - block.y + block.layer*0.006
-    y = config.offset_y + block.x - 0.002
+    y = config.offset_y + block.x
     print("target x: " + str(x))
     print("target y: " + str(y))
     rot = R.from_euler('xyz', [180, 0, ang], degrees = True).as_quat()

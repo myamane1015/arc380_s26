@@ -1,14 +1,16 @@
 import config
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import random
 
 def add_block(block, node, numbers, total_layers):
     x = block.x
     y = block.y
     z = block.z
+    random_number = random.randint(0, 1)
     ang = block.rotation
     x = config.offset_x - block.y + block.layer * 0.006
-    y = config.offset_y + block.x - 0.002
+    y = config.offset_y + block.x
     rot = R.from_euler('xyz', [180, 0, ang], degrees = True).as_quat()
     rot = tuple(rot[[3, 0, 1, 2]])
     target_x = config.base_block_locations[numbers[block.block_id]][1]

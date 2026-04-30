@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from cv2 import aruco
 from matplotlib import pyplot as plt
 
-img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\palette_3\layer_4.JPG'
+img_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\workshops\final_project_test\block_test\color (6).png'
 img = cv2.imread(img_path)
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -59,6 +59,8 @@ corrected_img = cv2.warpPerspective(img, M, (img_rgb.shape[1], img_rgb.shape[0])
 # Crop the output image to the specified dimensions
 corrected_img = corrected_img[:int(height*ppi), :int(width*ppi)]
 
+cv2.imwrite("test_2.png", corrected_img)
+
 # Reshape our image data to a flattened list of RGB values
 img_data = corrected_img.reshape((-1, 3))
 img_data = np.float32(img_data)
@@ -95,7 +97,7 @@ plt.show()
 #tan = np.array([205, 180, 144]) #layer two
 #tan = np.array([91, 128, 129]) #layer three
 #tan = np.array([151, 45, 0]) #layer four
-tan = np.array([0, 98, 159]) #layer five
+tan = np.array([3, 50, 67]) #layer five
 distances = np.linalg.norm(centers[:, ::-1] - tan, axis=1)
 block_cluster_label = np.argmin(distances)
 
@@ -117,7 +119,7 @@ areas = [cv2.contourArea(contour) for contour in contours]
 print(f'Area of each region: {areas}')
 block_idx = []
 for i in range(len(areas)):
-    if areas[i] > 20000:
+    if areas[i] > 15000:
         block_idx.append(i)
 
 centers_pos = np.zeros([len(block_idx), 2])
@@ -127,6 +129,8 @@ for i in range(len(block_idx)):
     x, y, w, h = cv2.boundingRect(selected_contour)
     centers_pos[i][0] = x + w//2
     centers_pos[i][1] = y + h//2
+
+print(str(centers_pos))
 
 center_img = corrected_img.copy()
 for i in range(len(block_idx)):

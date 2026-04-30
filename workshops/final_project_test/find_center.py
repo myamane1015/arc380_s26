@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-image_path = 'input_image.jpg'
+image_path = r'C:\Users\arc380\Downloads\arc380_s26\arc380_s26\workshops\final_project_test\test_2.png'
 img = cv2.imread(image_path)
 if img is None:
     raise FileNotFoundError(f'Could not read {image_path}')

@@ -45,7 +45,8 @@ class Tower:
                 'x': block.x,
                 'y': block.y,
                 'z': block.z,
-                'rotation': block.rotation
+                'rotation': block.rotation,
+                'layer': block.layer
             }
             data['blocks'].append(block_data)
         

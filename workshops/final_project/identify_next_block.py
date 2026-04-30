@@ -85,6 +85,7 @@ def identify_next_block(img, layer_number):
     labels = labels.reshape(corrected_img.shape[:2])
     
     color = np.array([config.colors_r[layer_number-1], config.colors_g[layer_number-1], config.colors_b[layer_number-1]])
+    print(str(color))
     distances = np.linalg.norm(centers[:, ::-1] - color, axis=1)
     block_cluster_label = np.argmin(distances)
     
@@ -130,11 +131,12 @@ def identify_next_block(img, layer_number):
         
     
     print("Number of blocks: " + str(len(block_idx)))
+    print("layer number: " + str(layer_number))
 
     block_list = []
     for i in range(len(block_idx)):
         block = Block()
-        block.block_id = (layer_number-1) * 2 + i
+        block.block_id = (layer_number-1) * 4 + i
         block.x = centers_pos[i][0]/96*0.0254
         block.y = centers_pos[i][1]/96*0.0254
         block.z = 0.014*(layer_number) + 0.019
